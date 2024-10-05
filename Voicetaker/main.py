@@ -8,6 +8,9 @@ import re
 import speech_recognition as sr
 from googletrans import Translator
 from deep_translator import GoogleTranslator
+from dotenv import load_dotenv
+from together import Together
+load_dotenv()
 
 translator = Translator()
 
@@ -231,6 +234,24 @@ def authenticate_user(username, password):
     conn.close()
     return result is not None
 
+
+client = Together(api_key = os.getenv("together_api"))
+
+if "convo" not in st.session_state:
+    st.session_state.convo = []
+
+def assistant():
+    response = client.chat.completions.create(
+        model = "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+        messages= st.session_state.convo,
+        temperature = 0.7,
+        max_tokens = 1000,
+        repetition_penalty=1,
+    )
+
+    aimsg = response.choices[0].message.content
+    return aimsg
+
 # Home page
 def home_page():
     st.title("VOICE TAKER")
@@ -352,7 +373,7 @@ def main():
         st.session_state.logged_in = False
 
     st.sidebar.title("Navigation")
-    page = st.sidebar.selectbox("Go to", ["Home", "Notes", "Feedback"])
+    page = st.sidebar.selectbox("Go to", ["Home", "Notes", "Feedback", "Chatbot"])
 
     if page == "Home":
         home_page()
@@ -366,6 +387,24 @@ def main():
     elif page == "Feedback":
         create_feedback_table()  # Create feedback table if not exists
         feedback_page()
+    elif page == "Chatbot":
+        st.title("Ask Your Query")
+        if not st.session_state.logged_in:
+            st.warning("Please login to access")
+            return
+
+        user_input = st.text_input("Shoot your question", "")
+
+        if st.button("Ask"):
+            if user_input:
+                st.session_state.convo.append({"role": "user", "content": user_input})
+                aires = assistant()
+                st.session_state.convo.append({"role": "user", "content": aires})
+                st.write(f"{aires}")
+            else:
+                print("Enter correct question")
+
+
 
 if __name__ == "__main__":
     main()
