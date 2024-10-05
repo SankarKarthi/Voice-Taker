@@ -7,6 +7,7 @@ import mysql.connector
 import re
 import speech_recognition as sr
 from googletrans import Translator
+from deep_translator import GoogleTranslator
 
 translator = Translator()
 
@@ -70,10 +71,17 @@ def generate_audio_files(username, index, original_note, translated_note):
     return original_audio_filename, translated_audio_filename
 
 def save_audio_file(text, filename):
-    translation = translator.translate(text, src='en', dest='en')
-    translated_text = translation.text
+    # Initialize GoogleTranslator for Tamil to English
+    translator = GoogleTranslator(source='ta', target='en')
+
+    # Translate the entire text at once
+    translated_text = translator.translate(text)
+
+    # Generate audio for the translated text
     translated_audio = gTTS(text=translated_text, lang='en', slow=False)
     translated_audio.save(filename)
+    
+    return translated_text
 
 # Function to connect to MySQL database
 def connect_to_database():
@@ -233,9 +241,9 @@ def home_page():
     create_notes_table()  # Create notes table if not exists
 
     st.write("Home page options:")
-    home_option = st.selectbox("", ["Sign Up", "Log In"])
+    tabs = st.tabs(["Login", "Sign Up"])
 
-    if home_option == "Sign Up":
+    with tabs[1]:
         st.subheader("Sign Up")
         new_username = st.text_input("New Username", key='new_username')
         new_password = st.text_input("New Password", type="password", key='new_password')
@@ -253,7 +261,7 @@ def home_page():
                 add_user(new_username, new_password)
                 st.success("Sign up successful! Please log in.")
 
-    elif home_option == "Log In":
+    with tabs[0]:
         st.subheader("Log In")
         username = st.text_input("Username", key='login_username')
         password = st.text_input("Password", type="password", key='login_password')
@@ -272,16 +280,16 @@ def notes_page(language):
     st.title("NOTES")
     
     st.write("Notes page options:")
-    notes_option = st.selectbox("", ["Take Note", "Read Notes"])
+    tabs = st.tabs(["Take Note", "Read Notes"])
 
-    if notes_option == "Take Note":
+    with tabs[0]:
         st.subheader("Take Note")
         original_note, translated_note = take_note(language=language)
         if original_note:
             note_id = save_note_to_database(st.session_state.current_username, original_note, translated_note)
             st.success("Note saved successfully!")
 
-    elif notes_option == "Read Notes":
+    with tabs[1]:
         st.subheader("Read Notes")
         if not st.session_state.logged_in:
             st.warning("Please log in to read notes.")
